@@ -1,0 +1,157 @@
+# This file is part of libertine linux's package util_linux. It is subject to the license terms in the COPYRIGHT file found in the top-level directory of this distribution and at https://raw.githubusercontent.com/libertine-linux-packages/util_linux/master/COPYRIGHT. No part of libertine linux's package util_linux, including this file, may be copied, modified, propagated, or distributed except according to the terms contained in the COPYRIGHT file.
+# Copyright © 2016 The developers of libertine linux's package util_linux. See the COPYRIGHT file in the top-level directory of this distribution and at https://raw.githubusercontent.com/libertine-linux-packages/util_linux/master/COPYRIGHT.
+
+
+variant=upstream
+
+depends build_ccache
+build_needs ccache
+
+depends build_gnumake
+build_needs make
+
+depends build_slibtool
+build_needs clibtool-static libtoolize realpath
+
+depends build_perl
+build_needs perl
+
+depends build_autoconf
+build_needs autoconf autoheader autom4te autoreconf autoscan autoupdate ifnames
+
+depends build_automake
+build_needs automake aclocal
+
+depends build_gnum4
+build_needs m4
+
+depends build_musl_cross_make_host
+build_needs "$libertine_host"-cc "$libertine_host"-gcc "$libertine_host"-ar "$libertine_host"-ld "$libertine_host"-ranlib "$libertine_host"-strip
+
+depends build_busybox
+build_needs sort dirname install expr ls sleep touch
+
+depends build_pkg_config
+
+case "$package" in
+	
+	libuuid)
+	
+		libertine_compile_libuuid()
+		{
+			_libertine_compile_util_linux_internal \
+				--disable-libblkid \
+				--disable-zramctl --disable-uuidd \
+				--disable-partx --disable-fsck \
+				--disable-losetup --disable-mount --disable-eject --disable-setpriv --disable-nsenter --disable-unshare --disable-fallocate --disable-mountpoint \
+				--disable-cal --disable-wdctl --disable-lslogins --disable-hwclock --disable-fdformat --disable-minix --disable-bfs --disable-cramfs \
+				--disable-rename --disable-raw --disable-last --disable-tunelp --disable-ipcs --disable-ipcrm --disable-pivot_root --disable-switch_root --disable-logger \
+				--disable-kill --disable-last --disable-utmpdump --disable-reset --disable-vipw --disable-newgrp --disable-login --disable-nologin --disable-sulogin \
+				--disable-su --disable-runuser --disable-ul --disable-more --disable-pg --disable-schedutils \
+				--disable-setterm --disable-wall --disable-mesg --disable-agetty \
+				--disable-write
+	
+		}
+		
+	;;
+	
+	libblkid)
+	
+		libertine_compile_libblkid()
+		{
+			_libertine_compile_util_linux_internal \
+				--disable-libuuid \
+				--disable-zramctl --disable-uuidd \
+				--disable-partx --disable-fsck \
+				--disable-losetup --disable-mount --disable-eject --disable-setpriv --disable-nsenter --disable-unshare --disable-fallocate --disable-mountpoint \
+				--disable-cal --disable-wdctl --disable-lslogins --disable-hwclock --disable-fdformat --disable-minix --disable-bfs --disable-cramfs \
+				--disable-rename --disable-raw --disable-last --disable-tunelp --disable-ipcs --disable-ipcrm --disable-pivot_root --disable-switch_root --disable-logger \
+				--disable-kill --disable-last --disable-utmpdump --disable-reset --disable-vipw --disable-newgrp --disable-login --disable-nologin --disable-sulogin \
+				--disable-su --disable-runuser --disable-ul --disable-more --disable-pg --disable-schedutils \
+				--disable-setterm --disable-wall --disable-mesg --disable-agetty \
+				--disable-write
+		}
+		
+	;;
+	
+	util_linux)
+	
+		libertine_compile_util_linux()
+		{
+			echo "util_linux UNSUPPORTED" 1>&2
+			exit 99
+		}
+	
+	;;
+	
+esac
+
+build_needs sed
+_libertine_compile_util_linux_removeCruftWhenBuildingALibrary()
+{
+	local cruftToRemove
+	for cruftToRemove in schedutils text-utils term-utils login-utils sys-utils misc-utils disk-utils bash-completion tests
+	do
+		sed -i -e '/^include '"$cruftToRemove"'/d' "$(libertine_public_sourcePath)"/Makefile.am
+	done
+}
+
+build_needs rm find xargs sed
+_libertine_compile_util_linux_internal()
+{
+	_libertine_compile_util_linux_removeCruftWhenBuildingALibrary
+
+	pushd "$(libertine_public_sourcePath)"
+		
+		libertine_public_autoconf_adjustConfigureAcToRemoveGnuTextCruftBeforeAutoconf
+
+		libertine_public_populateInputSysrootForBuild
+	
+		libertine_public_autoconf_installPkgConfigM4Macro
+		
+		libtoolize --install --force --verbose
+		autoreconf --install --force --verbose
+		
+		libertine_public_autoconf_modernAutoconfConfigure \
+			--disable-symvers \
+			--disable-assert \
+			--enable-fs-paths-default='/usr/sbin' \
+			--disable-use-tty-group \
+			--enable-usrdir-path \
+			--disable-makeinstall-chown \
+			--disable-makeinstall-setuid \
+			--disable-colors-default \
+			--without-util \
+			--without-cap-ng \
+			--without-udev \
+			--without-libz \
+			--without-user \
+			--without-python \
+			--without-ncurses \
+			--without-btrfs \
+			--without-utempter \
+			--without-systemd \
+			--without-smack \
+			--disable-bash-completion \
+			--disable-pylibmount \
+			--disable-pg-bell \
+			--disable-libmount \
+			--disable-libsmartcols \
+			--disable-libfdisk \
+			"$@"
+				
+		libertine_public_autoconf_removePoToRemoveGnuTextCruftBeforeMake
+		
+		# Code to prevent namespace collision for random_get_bytes with ZFS on Linux's spl
+		find . -type f | xargs sed -i -e 's/random_get_bytes/ul_random_get_bytes/g' 
+		
+		libertine_public_make
+		
+		libertine_public_make DESTDIR="$(libertine_public_outputHostSysrootPath)" install
+		
+	popd
+	
+	pushd "$(libertine_public_outputHostSysrootPath)"
+		rm -rf bin sbin usr/bin usr/sbin usr/share
+	popd
+}
