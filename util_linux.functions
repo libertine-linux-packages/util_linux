@@ -39,7 +39,7 @@ case "$package" in
 	
 		libertine_compile_libuuid()
 		{
-			_libertine_compile_util_linux_internal \
+			_libertine_compile_util_linux_internal libuuid \
 				--disable-libblkid \
 				--disable-zramctl --disable-uuidd \
 				--disable-partx --disable-fsck \
@@ -59,7 +59,7 @@ case "$package" in
 	
 		libertine_compile_libblkid()
 		{
-			_libertine_compile_util_linux_internal \
+			_libertine_compile_util_linux_internal libblkid \
 				--disable-libuuid \
 				--disable-zramctl --disable-uuidd \
 				--disable-partx --disable-fsck \
@@ -78,7 +78,7 @@ case "$package" in
 	
 		libertine_compile_util_linux()
 		{
-			echo "util_linux UNSUPPORTED" 1>&2
+			printf "util_linux UNSUPPORTED\n" 1>&2
 			exit 99
 		}
 	
@@ -96,9 +96,12 @@ _libertine_compile_util_linux_removeCruftWhenBuildingALibrary()
 	done
 }
 
-build_needs rm find xargs sed
+build_needs rm find xargs sed mkdir rm cp
 _libertine_compile_util_linux_internal()
 {
+	local libraryName="$1"
+	shift 1
+	
 	_libertine_compile_util_linux_removeCruftWhenBuildingALibrary
 
 	pushd "$(libertine_public_sourcePath)"
@@ -146,6 +149,26 @@ _libertine_compile_util_linux_internal()
 		find . -type f | xargs sed -i -e 's/random_get_bytes/ul_random_get_bytes/g' 
 		
 		libertine_public_make
+		
+		local ar="$libertine_host"-ar
+		local ranlib="$libertine_host"-ranlib
+		local staticArchiveToFixUpBecauseSlibtoolIsBroken
+		for staticArchiveToFixUpBecauseSlibtoolIsBroken in "$libraryName" libtcolors
+		do
+			mkdir .slibtool-is-broken
+			mv .libs/"$staticArchiveToFixUpBecauseSlibtoolIsBroken".a .slibtool-is-broken
+			cp .libs/libcommon.a .slibtool-is-broken
+			pushd .slibtool-is-broken
+				"$ar" xo libcommon.a
+				rm -rf libcommon.a
+				set +f
+					"$ar" q "$staticArchiveToFixUpBecauseSlibtoolIsBroken".a *.o
+				set -f
+				"$ranlib" "$staticArchiveToFixUpBecauseSlibtoolIsBroken".a
+			popd
+			mv .slibtool-is-broken/"$staticArchiveToFixUpBecauseSlibtoolIsBroken".a .libs
+			rm -rf .slibtool-is-broken
+		done
 		
 		libertine_public_make DESTDIR="$(libertine_public_outputHostSysrootPath)" install
 		
