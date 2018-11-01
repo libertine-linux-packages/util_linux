@@ -20,7 +20,7 @@ depends build_autoconf
 build_needs autoconf autoheader autom4te autoreconf autoscan autoupdate ifnames
 
 depends build_automake
-build_needs automake aclocal
+build_needs automake automake-1.15 aclocal aclocal-1.15
 
 depends build_gnum4
 build_needs m4
@@ -29,6 +29,7 @@ depends build_musl_cross_make_host
 build_needs "$libertine_host"-cc "$libertine_host"-gcc "$libertine_host"-ar "$libertine_host"-ld "$libertine_host"-ranlib "$libertine_host"-strip
 
 depends build_busybox
+depends build_netbsd_src_sleep
 build_needs sort dirname install expr ls sleep touch
 
 depends build_pkg_config
