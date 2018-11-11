@@ -25,8 +25,6 @@ build_needs automake automake-1.15 aclocal aclocal-1.15
 depends build_gnum4
 build_needs m4
 
-depends build_musl_cross_make_host
-build_needs "$libertine_host"-cc "$libertine_host"-gcc "$libertine_host"-ar "$libertine_host"-ld "$libertine_host"-ranlib "$libertine_host"-strip
 
 depends build_busybox
 depends build_netbsd_src_sleep
@@ -36,11 +34,33 @@ depends build_pkg_config
 
 case "$package" in
 	
-	libuuid)
-	
+	build_libuuid)
+
+		depends build_musl_cross_make_build
+		build_needs "$libertine_build"-cc "$libertine_build"-gcc "$libertine_build"-ar "$libertine_build"-ld "$libertine_build"-ranlib
 		libertine_compile_libuuid()
 		{
-			_libertine_compile_util_linux_internal libuuid \
+			_libertine_compile_util_linux_internal false libuuid \
+				--disable-libblkid \
+				--disable-zramctl --disable-uuidd \
+				--disable-partx --disable-fsck \
+				--disable-losetup --disable-mount --disable-eject --disable-setpriv --disable-nsenter --disable-unshare --disable-fallocate --disable-mountpoint \
+				--disable-cal --disable-wdctl --disable-lslogins --disable-hwclock --disable-fdformat --disable-minix --disable-bfs --disable-cramfs \
+				--disable-rename --disable-raw --disable-last --disable-tunelp --disable-ipcs --disable-ipcrm --disable-pivot_root --disable-switch_root --disable-logger \
+				--disable-kill --disable-last --disable-utmpdump --disable-reset --disable-vipw --disable-newgrp --disable-login --disable-nologin --disable-sulogin \
+				--disable-su --disable-runuser --disable-ul --disable-more --disable-pg --disable-schedutils \
+				--disable-setterm --disable-wall --disable-mesg --disable-agetty \
+				--disable-write
+	
+		}
+	
+	libuuid)
+
+		depends build_musl_cross_make_host
+		build_needs "$libertine_host"-cc "$libertine_host"-gcc "$libertine_host"-ar "$libertine_host"-ld "$libertine_host"-ranlib "$libertine_host"-strip
+		libertine_compile_libuuid()
+		{
+			_libertine_compile_util_linux_internal true libuuid \
 				--disable-libblkid \
 				--disable-zramctl --disable-uuidd \
 				--disable-partx --disable-fsck \
@@ -57,10 +77,12 @@ case "$package" in
 	;;
 	
 	libblkid)
-	
+
+		depends build_musl_cross_make_host
+		build_needs "$libertine_host"-cc "$libertine_host"-gcc "$libertine_host"-ar "$libertine_host"-ld "$libertine_host"-ranlib "$libertine_host"-strip
 		libertine_compile_libblkid()
 		{
-			_libertine_compile_util_linux_internal libblkid \
+			_libertine_compile_util_linux_internal true libblkid \
 				--disable-libuuid \
 				--disable-zramctl --disable-uuidd \
 				--disable-partx --disable-fsck \
@@ -100,8 +122,9 @@ _libertine_compile_util_linux_removeCruftWhenBuildingALibrary()
 build_needs rm find xargs sed mkdir rm cp
 _libertine_compile_util_linux_internal()
 {
-	local libraryName="$1"
-	shift 1
+	local forHost="$1"
+	local libraryName="$2"
+	shift 2
 	
 	_libertine_compile_util_linux_removeCruftWhenBuildingALibrary
 
@@ -171,11 +194,17 @@ _libertine_compile_util_linux_internal()
 			rm -rf .slibtool-is-broken
 		done
 		
-		libertine_public_make DESTDIR="$(libertine_public_outputHostSysrootPath)" install
+		if $forHost; then
+			libertine_public_make DESTDIR="$(libertine_public_outputHostSysrootPath)" install
+		else
+			libertine_public_make install
+		fi
 		
 	popd
 	
-	pushd "$(libertine_public_outputHostSysrootPath)"
-		rm -rf bin sbin usr/bin usr/sbin usr/share
-	popd
+	if $forHost; then
+		pushd "$(libertine_public_outputHostSysrootPath)"
+			rm -rf bin sbin usr/bin usr/sbin usr/share
+		popd
+	fi
 }
