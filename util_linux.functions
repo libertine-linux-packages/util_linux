@@ -38,7 +38,7 @@ case "$package" in
 
 		depends build_musl_cross_make_build
 		build_needs "$libertine_build"-cc "$libertine_build"-gcc "$libertine_build"-ar "$libertine_build"-ld "$libertine_build"-ranlib
-		libertine_compile_libuuid()
+		libertine_compile_build_libuuid()
 		{
 			_libertine_compile_util_linux_internal false libuuid \
 				--disable-libblkid \
@@ -53,7 +53,8 @@ case "$package" in
 				--disable-write
 	
 		}
-	
+	;;
+		
 	libuuid)
 
 		depends build_musl_cross_make_host
@@ -73,7 +74,6 @@ case "$package" in
 				--disable-write
 	
 		}
-		
 	;;
 	
 	libblkid)
@@ -174,8 +174,18 @@ _libertine_compile_util_linux_internal()
 		
 		libertine_public_make
 		
-		local ar="$libertine_host"-ar
-		local ranlib="$libertine_host"-ranlib
+		printf 'after make\n' 1>&2
+		
+		local ar
+		local ranlib
+		if $forHost; then
+			ar="$libertine_host"-ar
+			ranlib="$libertine_host"-ranlib
+		else
+			ar="$libertine_build"-ar
+			ranlib="$libertine_build"-ranlib
+		fi
+		
 		local staticArchiveToFixUpBecauseSlibtoolIsBroken
 		for staticArchiveToFixUpBecauseSlibtoolIsBroken in "$libraryName" libtcolors
 		do
@@ -197,13 +207,17 @@ _libertine_compile_util_linux_internal()
 		if $forHost; then
 			libertine_public_make DESTDIR="$(libertine_public_outputHostSysrootPath)" install
 		else
-			libertine_public_make install
+			libertine_public_make DESTDIR="$(libertine_public_outputBuildSysrootPath)" install
 		fi
 		
 	popd
 	
 	if $forHost; then
 		pushd "$(libertine_public_outputHostSysrootPath)"
+			rm -rf bin sbin usr/bin usr/sbin usr/share
+		popd
+	else
+		pushd "$(libertine_public_outputBuildSysrootPath)"
 			rm -rf bin sbin usr/bin usr/sbin usr/share
 		popd
 	fi
